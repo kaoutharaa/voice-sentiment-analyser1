@@ -125,7 +125,7 @@ SR_CLASSICAL = 22050
 SR_WAV2VEC   = 16000
 MAX_DURATION = 4.0
 PRE_EMPHASIS = 0.97
-TRIM_TOP_DB  = 30
+TRIM_TOP_DB  = 20
 
 # Filenames as they exist in the HuggingFace repo
 HF_FILES = {
@@ -158,8 +158,9 @@ def to_wav_bytes(uploaded_file) -> bytes:
 def load_and_clean(audio_bytes: bytes, target_sr: int) -> np.ndarray:
     buf = io.BytesIO(audio_bytes)
     y, sr = librosa.load(buf, sr=target_sr, mono=True)
-    if len(y) > sr * 0.1:
-        y = nr.reduce_noise(y=y, sr=sr, prop_decrease=0.5, stationary=True)
+    
+    # We removed nr.reduce_noise here! The browser (Chrome/Edge) already applies 
+    # heavy noise suppression. Doing it twice destroys the emotional frequencies.
     y, _ = librosa.effects.trim(y, top_db=TRIM_TOP_DB)
     if len(y) == 0:
         buf.seek(0)
