@@ -125,7 +125,7 @@ SR_CLASSICAL = 22050
 SR_WAV2VEC   = 16000
 MAX_DURATION = 4.0
 PRE_EMPHASIS = 0.97
-TRIM_TOP_DB  = 20
+TRIM_TOP_DB  = 40
 
 # Filenames as they exist in the HuggingFace repo
 HF_FILES = {
@@ -161,10 +161,11 @@ def load_and_clean(audio_bytes: bytes, target_sr: int) -> np.ndarray:
     
     # We removed nr.reduce_noise here! The browser (Chrome/Edge) already applies 
     # heavy noise suppression. Doing it twice destroys the emotional frequencies.
-    y, _ = librosa.effects.trim(y, top_db=TRIM_TOP_DB)
-    if len(y) == 0:
-        buf.seek(0)
-        y, sr = librosa.load(buf, sr=target_sr, mono=True)
+    y_trimmed, _ = librosa.effects.trim(y, top_db=TRIM_TOP_DB)
+    # Only use trimmed version if it didn't completely destroy the audio
+    if len(y_trimmed) > target_sr * 0.5:
+        y = y_trimmed
+        
     y = np.append(y[0], y[1:] - PRE_EMPHASIS * y[:-1])
     rms = np.sqrt(np.mean(y ** 2))
     if rms > 0:
@@ -454,13 +455,18 @@ with tab3:
 
         def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
             audio = frame.to_ndarray()
+            # Handle both float32 and int16 WebRTC streams dynamically
+            if np.issubdtype(audio.dtype, np.integer):
+                audio = audio.astype(np.float32) / 32768.0
+            else:
+                audio = audio.astype(np.float32)
+
             self.sample_rate = frame.sample_rate
             self.audio_buffer.extend(audio[0])
 
             # Process every 3 seconds of audio
             if self.sample_rate and len(self.audio_buffer) >= 3 * self.sample_rate:
-                # Normalize WebRTC int16 samples to [-1.0, 1.0] for soundfile to avoid clipping/noise
-                chunk = np.array(self.audio_buffer, dtype=np.float32) / 32768.0
+                chunk = np.array(self.audio_buffer, dtype=np.float32)
                 self.audio_buffer = [] 
                 
                 # Keep only the latest chunk
