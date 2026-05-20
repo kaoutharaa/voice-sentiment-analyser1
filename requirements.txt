@@ -1,0 +1,13 @@
+streamlit>=1.31.0
+sounddevice
+soundfile
+librosa
+noisereduce
+joblib
+torch
+transformers
+pydub
+numpy
+scikit-learn
+streamlit-webrtc
+av
