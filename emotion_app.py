@@ -168,7 +168,9 @@ def load_and_clean(audio_bytes: bytes, target_sr: int) -> np.ndarray:
     y = np.append(y[0], y[1:] - PRE_EMPHASIS * y[:-1])
     rms = np.sqrt(np.mean(y ** 2))
     if rms > 0:
-        y = y * (0.1 / rms)
+        # Prevent extreme amplification of quiet laptop mics which causes clipping distortion
+        multiplier = min(0.1 / rms, 3.0)
+        y = y * multiplier
     return y.astype(np.float32)
 
 
