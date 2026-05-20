@@ -159,6 +159,12 @@ def load_and_clean(audio_bytes: bytes, target_sr: int) -> np.ndarray:
     buf = io.BytesIO(audio_bytes)
     y, sr = librosa.load(buf, sr=target_sr, mono=True)
     
+    # HARD TRIM: Remove the first 0.2s and last 0.2s to delete loud mouse clicks from the UI buttons
+    # We only do this if the recording is longer than 1.5 seconds so we don't accidentally delete short words.
+    edge_trim = int(target_sr * 0.2)
+    if len(y) > target_sr * 1.5:
+        y = y[edge_trim:-edge_trim]
+    
     # We removed nr.reduce_noise here! The browser (Chrome/Edge) already applies 
     # heavy noise suppression. Doing it twice destroys the emotional frequencies.
     y_trimmed, _ = librosa.effects.trim(y, top_db=TRIM_TOP_DB)
